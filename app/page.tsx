@@ -12,10 +12,10 @@ export default function Home() {
   const [team2, setTeam2] = useState<any>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [load, setLoad] = useState(true);
 
-  const [expectedPoints, setExpectedPoints] = useState(0);
-  const [win, setWin] = useState(0);
-  const [draw, setDraw] = useState(0);
-  const [lose, setLose] = useState(0);
+  const [expectedPoints, setExpectedPoints] = useState('');
+  const [win, setWin] = useState('');
+  const [draw, setDraw] = useState('');
+  const [lose, setLose] = useState('');
 
   function erf(x: number) {
     // save the sign of x
@@ -116,7 +116,7 @@ export default function Home() {
               />
             );
           })}
-          <Button varient="outline" onClick={calc}>Calculate</Button>
+          <Button variant="outline" onClick={calc}>Calculate</Button>
         </div>
       </div>
       <div className="m-4">
