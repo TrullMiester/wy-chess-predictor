@@ -1,113 +1,145 @@
-import Image from "next/image";
+"use client";
+
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { getRatings } from "@/utils/get-ratings";
+import { setRatings } from "@/utils/set-ratings";
+import { calculateOverrideValues } from "next/dist/server/font-utils";
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  const [team1, setTeam1] = useState<any>([0, 0, 0, 0, 0, 0, 0, 0]);
+  const [team2, setTeam2] = useState<any>([0, 0, 0, 0, 0, 0, 0, 0]);
+  const [load, setLoad] = useState(true);
+
+  const [expectedPoints, setExpectedPoints] = useState(0);
+  const [win, setWin] = useState(0);
+  const [draw, setDraw] = useState(0);
+  const [lose, setLose] = useState(0);
+
+  function erf(x: number) {
+    // save the sign of x
+    var sign = x >= 0 ? 1 : -1;
+    x = Math.abs(x);
+
+    // constants
+    var a1 = 0.254829592;
+    var a2 = -0.284496736;
+    var a3 = 1.421413741;
+    var a4 = -1.453152027;
+    var a5 = 1.061405429;
+    var p = 0.3275911;
+
+    // A&S formula 7.1.26
+    var t = 1.0 / (1.0 + p * x);
+    var y =
+      1.0 -
+      ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y; // erf(-x) = -erf(x);
+  }
+
+  const cdf = (exp: number, stddev: number, mean: number) => {
+    const z = (mean - exp) / (stddev * Math.sqrt(2));
+
+    return 0.5 * (1 + erf(z));
+  };
+
+  const calc = () => {
+    let ev = 0;
+    let stddev = 0;
+
+    let new1ratings = []
+    let new2ratings = []
+
+    for (let i = 0; i < 8; i++) {
+      let board1 = parseInt(
+        (document.getElementById("team1" + i) as HTMLInputElement).value
+      );
+      let board2 = parseInt(
+        (document.getElementById("team2" + i) as HTMLInputElement).value
+      );
+
+      if (board1 == null || board2 == null) return;
+
+      new1ratings.push(board1)
+      new2ratings.push(board2)
+
+      let prob = 1 / (1 + Math.pow(10, -((board1 - board2) / 400)));
+      ev += prob * (12 - i);
+      stddev += prob * (1 - prob) * (12 - i) * (12 - i);
+    }
+
+    stddev = Math.pow(stddev, 0.5);
+
+    let winn = 1 - cdf(ev, stddev, 34.5);
+    let losee = cdf(ev, stddev, 33.5);
+    let draww = 1 - winn - losee
+
+
+    console.log(new1ratings, new2ratings, ev, stddev)
+
+    setTeam1(new1ratings)
+    setTeam2(new2ratings)
+    setWin((winn*100).toFixed(2))
+    setDraw((draww*100).toFixed(2))
+    setLose((losee*100).toFixed(2))
+    setExpectedPoints(ev.toFixed(2))
+
+    setRatings("team1", new1ratings)
+    setRatings("team2", new2ratings)
+  };
+
+  useEffect(() => {
+    const getData = async () => {
+      setTeam1(await getRatings("team1"));
+      setTeam2(await getRatings("team2"));
+      setLoad(false);
+    };
+
+    if (load) {
+      getData();
+    }
+  }, [])
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <div className="w-screen h-screen flex bg-white text-black">
+      <div className="m-4">
+        <h1 className="mb-4">TEAM 1</h1>
+        <div className="flex flex-col gap-2">
+          {team1.map((board: number, index: number) => {
+            return (
+              <Input
+                defaultValue={team1[index]}
+                type="number"
+                key={"team1" + index}
+                id={"team1" + index}
+              />
+            );
+          })}
+          <Button varient="outline" onClick={calc}>Calculate</Button>
         </div>
       </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
+      <div className="m-4">
+        <h1 className="mb-4">TEAM 2</h1>
+        <div className="flex flex-col gap-2">
+          {team2.map((board: number, index: number) => {
+            return (
+              <Input
+                defaultValue={team2[index]}
+                type="number"
+                key={"team2" + index}
+                id={"team2" + index}
+              />
+            );
+          })}
+        </div>
       </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+      <div className="my-32 ml-64 flex flex-col gap-4">
+        <span>Expected Points: {expectedPoints}</span>
+        <span>Win%: {win}%</span>
+        <span>Draw%: {draw}%</span>
+        <span>Lose%: {lose}%</span>
       </div>
-    </main>
+    </div>
   );
 }
